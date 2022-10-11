@@ -1,8 +1,8 @@
 import time
-
 import torch
 from torch import nn
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 # Check PyTorch version
 pytorch_version = torch.__version__
@@ -41,13 +41,15 @@ def plot_prediction(train_data = X_train,
                     train_labels = y_train,
                     test_data = X_test,
                     test_labels = y_test,
-                    predictions = None):
+                    predictions = None,):
     plt.figure(figsize=(10, 7))
     plt.scatter(train_data, train_labels, c="r", s=20, label="Train data")
     plt.scatter(test_data, test_labels, c="b", s=20, label="Test data")
     if predictions is not None:
-        plt.scatter(test_data, predictions, c = "y", s = 3, label="Predictions")
+        plt.scatter(test_data, predictions, c = "g", s = 3, label="Predictions")
     plt.legend()
+    plt.xlabel("X")
+    plt.ylabel("y")
     plt.show()
 
 
@@ -89,7 +91,8 @@ print(f"Model is: {model_0}")
 print(f"Model's state_dict: {model_0.state_dict()}")
 
 y_pred_before_training = model_0(X_test)
-plot_prediction(predictions=y_pred_before_training.detach().numpy())
+# plot_prediction(predictions=y_pred_before_training.detach().numpy())
+
 # Check the current model device
 print("Model is currently on: ")
 print(next(model_0.parameters()).device)
@@ -156,4 +159,35 @@ with torch.inference_mode():
     y_preds = model_0(X_test) # now prediction will be made with the newly calculated  weight and bias after the training
 
 # plotting after training
-plot_prediction(predictions=y_preds.to("cpu").numpy())
+# plot_prediction(predictions=y_preds.cpu())
+
+
+# Saving the trained model
+MODEL_PATH = Path("models")
+MODEL_PATH.mkdir(parents=True, exist_ok=True)
+
+MODEL_NAME = "00_Linear_Regression.pth"
+MODEL_SAVE_PATH = MODEL_PATH / MODEL_NAME
+print(f"Model saved at: {MODEL_SAVE_PATH}")
+
+torch.save(obj=model_0.state_dict(),
+           f=MODEL_SAVE_PATH)
+
+# Testing loading the model
+loaded_model_0 = LinearRegressionModel() # creating a new instance of the model, since we saved only the state dicts
+loaded_model_0.load_state_dict(torch.load(MODEL_SAVE_PATH))
+
+# Send the model to the device
+loaded_model_0.to(device)
+print(f"Loaded model is on: ")
+print(next(loaded_model_0.parameters()).device)
+
+print(loaded_model_0.state_dict())
+
+# Predicting on loaded model
+loaded_model_0.eval()
+with torch.inference_mode():
+    loaded_model_0_preds = loaded_model_0(X_test)
+
+# checking if predictions is same for both the loaded and the original models
+print(y_preds == loaded_model_0_preds)
