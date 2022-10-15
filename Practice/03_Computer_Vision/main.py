@@ -197,3 +197,83 @@ train_end_time = timer()
 
 print_time_taken(train_start_time, train_end_time, next(model_0.parameters()).device)
 
+print("-------- NOW A NON LINEAR MODEL AND ON GPU -------------")
+
+class FashionMNISTmodelV01(nn.Module):
+    def __init__(self, input_shape, output_shape, neurons):
+        super().__init__()
+        self.layer_stack = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(in_features=input_shape, out_features=neurons),
+            nn.ReLU(),
+            nn.Linear(in_features=neurons, out_features=output_shape),
+            nn.ReLU()
+        )
+
+    def forward(self, x):
+        return self.layer_stack(x)
+
+model_01 = FashionMNISTmodelV01(input_shape=28*28,
+                                output_shape=len(class_names),
+                                neurons=10).to(device)
+
+train_start_time1 = timer()
+
+epoch = EPOCHS
+
+for epoch in tqdm(range(epochs)):
+    model_01.train()
+
+    train_loss, train_acc = 0, 0
+    for batch, (X,y) in enumerate(train_dataloader):
+
+        #sending the data to device
+        X, y = X.to(device), y.to(device)
+
+        # forward pass
+        y_logits = model_01(X)
+
+        # loss
+        loss = loss_fn(y_logits, y)
+        train_loss += loss
+
+        #accuracy
+        y_preds = torch.softmax(y_logits, dim=1).argmax(dim=1)
+        train_acc += accuracy_fn(y_true=y, y_pred=y_preds)
+
+        # setting zero grad
+        optimizer.zero_grad()
+
+        # backprop
+        loss.backward()
+
+        # updating the parameters
+        optimizer.step()
+
+        if batch % 400 == 0:
+            print(f"Reached upto batch no: {batch}")
+
+    train_loss /= len(train_dataloader)
+    train_acc /= len(train_dataloader)
+
+    # testing
+    test_loss, test_acc = 0, 0
+    model_01.eval()
+    with torch.inference_mode():
+        for X_test, y_test in test_dataloader:
+            X_test, y_test = X_test.to(device), y_test.to(device)
+
+            test_logits = model_01(X_test)
+            test_preds = torch.softmax(test_logits, dim=1).argmax(dim=1)
+
+            test_loss += loss_fn(test_logits, y_test)
+            test_acc += accuracy_fn(y_true=y_test, y_pred=test_preds)
+
+        test_loss /= len(test_dataloader)
+        test_acc /= len(test_dataloader)
+
+    print(f"Epoch: {epoch} | Train loss: {train_loss} | Train acc: {train_acc} | Test loss: {test_loss} | Test acc: {test_acc}")
+
+train_end_time1 = timer()
+
+print_time_taken(train_start_time1, train_end_time1, next(model_01.parameters()).device)
