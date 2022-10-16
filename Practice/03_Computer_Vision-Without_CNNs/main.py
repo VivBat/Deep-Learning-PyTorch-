@@ -20,7 +20,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 # Hyperparameters
 LEARNING_RATE = 0.01
 BATCH_SIZE = 32
-EPOCHS = 3
+EPOCHS = 30
 
 # Getting the dataset
 # training data
@@ -197,7 +197,7 @@ train_end_time = timer()
 
 print_time_taken(train_start_time, train_end_time, next(model_0.parameters()).device)
 
-print("-------- NOW A NON LINEAR MODEL AND ON GPU -------------")
+print("------------------------------ NOW A NON LINEAR MODEL AND ON GPU ------------------------------------------")
 
 class FashionMNISTmodelV01(nn.Module):
     def __init__(self, input_shape, output_shape, neurons):
