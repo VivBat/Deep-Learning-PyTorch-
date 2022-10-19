@@ -91,13 +91,6 @@ class CNN_FashionMNIST_V01(nn.Module):
                       kernel_size=3,
                       stride=1,
                       padding=0),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=neurons,
-                      out_channels=neurons,
-                      kernel_size=3,
-                      stride=1,
-                      padding=0
-                      ),
             nn.ReLU()
         )
 
@@ -109,16 +102,50 @@ class CNN_FashionMNIST_V01(nn.Module):
                       padding=0
                       ),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=3,
+            nn.MaxPool2d(kernel_size=2,
                          stride=1,
                          padding=0)
         )
 
         self.classification_layer = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(in_features=neurons * 20 * 20,
+            nn.Linear(in_features=neurons * 23 * 23,
                       out_features=output_shape)
         )
+
+    # def __init__(self, input_shape: int, neurons: int, output_shape: int):
+    #     super().__init__()
+    #     self.conv2d_block1 = nn.Sequential(
+    #         nn.Conv2d(in_channels=input_shape,
+    #                   out_channels=neurons,
+    #                   kernel_size=3,  # how big is the square that's going over the image?
+    #                   stride=1,  # default
+    #                   padding=1),
+    #         # options = "valid" (no padding) or "same" (output has same shape as input) or int for specific number
+    #         nn.ReLU(),
+    #         nn.Conv2d(in_channels=neurons,
+    #                   out_channels=neurons,
+    #                   kernel_size=3,
+    #                   stride=1,
+    #                   padding=1),
+    #         nn.ReLU(),
+    #         nn.MaxPool2d(kernel_size=2,
+    #                      stride=2)  # default stride value is same as kernel_size
+    #     )
+    #     self.conv2d_block2 = nn.Sequential(
+    #         nn.Conv2d(neurons, neurons, 3, padding=1),
+    #         nn.ReLU(),
+    #         nn.Conv2d(neurons, neurons, 3, padding=1),
+    #         nn.ReLU(),
+    #         nn.MaxPool2d(2)
+    #     )
+    #     self.classification_layer = nn.Sequential(
+    #         nn.Flatten(),
+    #         # Where did this in_features shape come from?
+    #         # It's because each layer of our network compresses and changes the shape of our inputs data.
+    #         nn.Linear(in_features=neurons * 7 * 7,
+    #                   out_features=output_shape)
+    #     )
 
     def forward(self, x):
         x = self.conv2d_block1(x)
@@ -219,11 +246,12 @@ def test_step(model: nn.Module,
             # forward prop
             y_logits = model(X)
 
+            # calculating loss and adding it to test_loss
+            test_loss += loss_function(y_logits, y)
+
             # prediction from logits
             y_preds = torch.softmax(y_logits, dim=1).argmax(dim=1)
 
-            # calculating loss and adding it to test_loss
-            test_loss += loss_function(y_preds.to(torch.float32), y.to(torch.float32))
             # calculating the test accuracy
             test_accuracy += accuracy_function(y, y_preds)
 
@@ -231,6 +259,7 @@ def test_step(model: nn.Module,
         test_accuracy /= len(data)
 
     return test_loss, test_accuracy
+
 
 def model_eval(model: nn.Module,
                data: torch.utils.data.DataLoader,
@@ -248,11 +277,11 @@ def model_eval(model: nn.Module,
             # Forward prop
             y_logits = model(X)
 
+            # loss
+            loss += loss_function(y_logits, y)
+
             # converting to predictions
             y_preds = torch.softmax(y_logits, dim=1).argmax(dim=1)
-
-            # loss
-            loss += loss_function(y_preds.to(torch.float32), y.to(torch.float32))
 
             #accuracy
             acc += accuracy_function(y, y_preds)
@@ -260,15 +289,15 @@ def model_eval(model: nn.Module,
         loss /= len(data)
         acc /= len(data)
 
-    return {"model_name" : model.__class__.__name__ ,
-            "model_loss" : loss.item(),
-            "model_accuracy" : acc.item()}
+    return {"model_name": model.__class__.__name__ ,
+            "model_loss": loss.item(),
+            "model_accuracy": acc}
 
 
 # instantiating the model
 model = CNN_FashionMNIST_V01(input_shape=1,
                              output_shape=len(label_classes),
-                             neurons=10).to(device)
+                             neurons=20).to(device)
 
 # model(train_dataloader0_data.to(device))
 
@@ -281,21 +310,21 @@ optimizer = torch.optim.Adam(model.parameters(),
 train_loss_hist = []
 test_loss_hist = []
 # training and testing the model
-# for epoch in tqdm(range(EPOCHS)):
-#     print(f"----Epoch: {epoch} ------")
-#     train_loss, train_acc = train_step(model=model,
-#                                        data=train_dataloader,
-#                                        loss_function=loss_fn,
-#                                        optimizer=optimizer,
-#                                        accuracy_function=accuracy_fn)
-#
-#     test_loss, test_acc = test_step(model=model,
-#                                     data=test_dataloader,
-#                                     loss_function=loss_fn,
-#                                     accuracy_function=accuracy_fn)
-#
-#
-#     print(f"Epoch: {epoch} | Train loss: {train_loss:.4f} | Train acc: {train_acc:.2f}% | Test loss: {test_loss:.4f} | Test acc: {test_acc:.2f}%")
+for epoch in tqdm(range(EPOCHS)):
+    print(f"----Epoch: {epoch} ------")
+    train_loss, train_acc = train_step(model=model,
+                                       data=train_dataloader,
+                                       loss_function=loss_fn,
+                                       optimizer=optimizer,
+                                       accuracy_function=accuracy_fn)
+
+    test_loss, test_acc = test_step(model=model,
+                                    data=test_dataloader,
+                                    loss_function=loss_fn,
+                                    accuracy_function=accuracy_fn)
+
+
+    print(f"Epoch: {epoch} | Train loss: {train_loss:.4f} | Train acc: {train_acc:.2f}% | Test loss: {test_loss:.4f} | Test acc: {test_acc:.2f}%")
 
 model_result = model_eval(model,
            test_dataloader,
