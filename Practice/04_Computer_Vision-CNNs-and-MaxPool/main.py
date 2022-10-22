@@ -89,13 +89,11 @@ input_shape = first_image_like.shape[0]
 NEURONS = 10
 OUTPUT_SHAPE = 10
 
-model = CNN_model_V01(input_shape=input_shape,
+model = CNN_model_V01(input_shape=1,
                       output_shape=OUTPUT_SHAPE,
                       neurons=NEURONS)
 
-# try:
-model(first_image_like)
-# except RuntimeError as error:
-#     print("passing image through the cnn didnt work...check what is wrong with it.")
-#     print(f"-------------------{error}-------------------------------")
 
+sample = torch.randn(1,28,28)
+print(sample)
+model(sample)

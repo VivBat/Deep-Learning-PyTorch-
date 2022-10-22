@@ -163,7 +163,7 @@ with torch.inference_mode():
 
 
 # Saving the trained model
-MODEL_PATH = Path("models")
+MODEL_PATH = Path("../models")
 MODEL_PATH.mkdir(parents=True, exist_ok=True)
 
 MODEL_NAME = "00_Linear_Regression.pth"

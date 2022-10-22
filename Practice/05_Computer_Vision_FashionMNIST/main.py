@@ -13,6 +13,12 @@ from timeit import default_timer as timer
 from tqdm.auto import tqdm
 import numpy as np
 
+from torchmetrics import ConfusionMatrix
+from mlxtend.plotting import plot_confusion_matrix
+
+from pathlib import Path
+
+
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # Hyperparameters
@@ -47,15 +53,15 @@ img0, label0 = train_data.data[0], train_data.targets[0].item()
 # plt.show()
 
 # Visualising 16 random images from the training data
-plt.figure(figsize=(9, 9))
-rows, cols = 4, 4
-for i in range(1, rows * cols + 1):
-    random_idx = random.randint(0, len(train_data))
-    img, label = train_data.data[random_idx], train_data.targets[random_idx].item()
-    plt.subplot(rows, cols, i)
-    plt.imshow(img, cmap='gray')
-    plt.title(label_classes[label])
-    plt.axis(False)
+# plt.figure(figsize=(9, 9))
+# rows, cols = 4, 4
+# for i in range(1, rows * cols + 1):
+#     random_idx = random.randint(0, len(train_data))
+#     img, label = train_data.data[random_idx], train_data.targets[random_idx].item()
+#     plt.subplot(rows, cols, i)
+#     plt.imshow(img, cmap='gray')
+#     plt.title(label_classes[label])
+#     plt.axis(False)
 # plt.show()
 
 
@@ -75,7 +81,6 @@ print(f"Number of batches: {len(train_dataloader)}")
 print(f"Shape of one of the iterable datasets (dataloader): {train_dataloader0_data.shape}")
 
 
-# print(train_dataloader0_data == img0)
 
 # The model
 class CNN_FashionMNIST_V01(nn.Module):
@@ -112,40 +117,6 @@ class CNN_FashionMNIST_V01(nn.Module):
             nn.Linear(in_features=neurons * 23 * 23,
                       out_features=output_shape)
         )
-
-    # def __init__(self, input_shape: int, neurons: int, output_shape: int):
-    #     super().__init__()
-    #     self.conv2d_block1 = nn.Sequential(
-    #         nn.Conv2d(in_channels=input_shape,
-    #                   out_channels=neurons,
-    #                   kernel_size=3,  # how big is the square that's going over the image?
-    #                   stride=1,  # default
-    #                   padding=1),
-    #         # options = "valid" (no padding) or "same" (output has same shape as input) or int for specific number
-    #         nn.ReLU(),
-    #         nn.Conv2d(in_channels=neurons,
-    #                   out_channels=neurons,
-    #                   kernel_size=3,
-    #                   stride=1,
-    #                   padding=1),
-    #         nn.ReLU(),
-    #         nn.MaxPool2d(kernel_size=2,
-    #                      stride=2)  # default stride value is same as kernel_size
-    #     )
-    #     self.conv2d_block2 = nn.Sequential(
-    #         nn.Conv2d(neurons, neurons, 3, padding=1),
-    #         nn.ReLU(),
-    #         nn.Conv2d(neurons, neurons, 3, padding=1),
-    #         nn.ReLU(),
-    #         nn.MaxPool2d(2)
-    #     )
-    #     self.classification_layer = nn.Sequential(
-    #         nn.Flatten(),
-    #         # Where did this in_features shape come from?
-    #         # It's because each layer of our network compresses and changes the shape of our inputs data.
-    #         nn.Linear(in_features=neurons * 7 * 7,
-    #                   out_features=output_shape)
-    #     )
 
     def forward(self, x):
         x = self.conv2d_block1(x)
@@ -194,7 +165,7 @@ def train_step(model: nn.Module,
         train_loss += loss
 
         # converting the logits to predictions
-        y_preds = torch.softmax(y_logits, dim=1).argmax(dim=1)
+        y_preds = torch.softmax(y_logits, dim=0).argmax(dim=1)
 
         # calculating the accuracy from y_preds
         train_accuracy += accuracy_function(y, y_preds)
@@ -250,7 +221,7 @@ def test_step(model: nn.Module,
             test_loss += loss_function(y_logits, y)
 
             # prediction from logits
-            y_preds = torch.softmax(y_logits, dim=1).argmax(dim=1)
+            y_preds = torch.softmax(y_logits, dim=0).argmax(dim=1)
 
             # calculating the test accuracy
             test_accuracy += accuracy_function(y, y_preds)
@@ -270,8 +241,7 @@ def model_eval(model: nn.Module,
     # setting the model to eval mode
     model.eval()
     with torch.inference_mode():
-        for batch, (X,y) in enumerate(data):
-
+        for batch, (X, y) in enumerate(data):
             X = X.to(device)
             y = y.to(device)
             # Forward prop
@@ -281,15 +251,15 @@ def model_eval(model: nn.Module,
             loss += loss_function(y_logits, y)
 
             # converting to predictions
-            y_preds = torch.softmax(y_logits, dim=1).argmax(dim=1)
+            y_preds = torch.softmax(y_logits, dim=0).argmax(dim=1)
 
-            #accuracy
+            # accuracy
             acc += accuracy_function(y, y_preds)
 
         loss /= len(data)
         acc /= len(data)
 
-    return {"model_name": model.__class__.__name__ ,
+    return {"model_name": model.__class__.__name__,
             "model_loss": loss.item(),
             "model_accuracy": acc}
 
@@ -297,7 +267,7 @@ def model_eval(model: nn.Module,
 # instantiating the model
 model = CNN_FashionMNIST_V01(input_shape=1,
                              output_shape=len(label_classes),
-                             neurons=20).to(device)
+                             neurons=10).to(device)
 
 # model(train_dataloader0_data.to(device))
 
@@ -305,7 +275,6 @@ model = CNN_FashionMNIST_V01(input_shape=1,
 loss_fn = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(),
                              lr=LEARNING_RATE)
-
 
 train_loss_hist = []
 test_loss_hist = []
@@ -323,13 +292,90 @@ for epoch in tqdm(range(EPOCHS)):
                                     loss_function=loss_fn,
                                     accuracy_function=accuracy_fn)
 
-
-    print(f"Epoch: {epoch} | Train loss: {train_loss:.4f} | Train acc: {train_acc:.2f}% | Test loss: {test_loss:.4f} | Test acc: {test_acc:.2f}%")
+    print(
+        f"Epoch: {epoch} | Train loss: {train_loss:.4f} | Train acc: {train_acc:.2f}% | Test loss: {test_loss:.4f} | "
+        f"Test acc: {test_acc:.2f}%"
+    )
 
 model_result = model_eval(model,
-           test_dataloader,
-           loss_function=loss_fn,
-           accuracy_function=accuracy_fn)
+                          test_dataloader,
+                          loss_function=loss_fn,
+                          accuracy_function=accuracy_fn)
 
 print(model_result)
+
+
+def make_predictions(model: nn.Module,
+                     data: torch.utils.data.DataLoader):
+    """
+    Makes predictions for all the images in the test data
+    :param model: The trained model
+    :param data: Data for which predictions are to be made
+    :return: A tensor containing predictions for the entire dataset
+    """
+    model.eval()
+
+    preds = []
+    with torch.inference_mode():
+        for X, y in data:
+            X = X.to(device)
+
+            y_logits = model(X)
+
+            y_pred = torch.softmax(y_logits, dim=0).argmax(dim=1)
+
+            preds.append(y_pred)
+
+    predictions = torch.cat(preds)
+
+    return predictions
+
+
+predictions_on_test_data = make_predictions(model,
+                                            data=test_dataloader)
+
+# print(f"preds comparison---: {predictions_on_test_data == test_data.targets.to(device)}")
+
+rows, cols = 4, 4
+plt.figure(figsize=(9,9))
+
+for i in range(1, rows*cols+1):
+    random_idx = random.randint(0,len(predictions_on_test_data))
+    img, label, pred_label = test_data.data[random_idx], test_data.targets[random_idx], predictions_on_test_data[random_idx]
+
+    plt.subplot(rows, cols, i)
+    plt.imshow(img, cmap='gray')
+
+    title_color = 'g' if label == pred_label else 'r'
+    plt.title(label_classes[label] + " | " + label_classes[pred_label], c=title_color)
+
+    plt.axis(False)
+plt.show()
+
+# Plotting the confusion matrix
+conf_mat = ConfusionMatrix(num_classes=len(label_classes))
+
+conf_mat_tensor = conf_mat(preds=predictions_on_test_data.to("cpu"),
+                           target=test_data.targets)
+
+print(f"Confusion matrix: {conf_mat_tensor}")
+# using mlxtend to visualise the confusion matrix
+
+fig, ax = plot_confusion_matrix(conf_mat=conf_mat_tensor.numpy(),
+                                class_names=label_classes,
+                                figsize=(10,7))
+
+plt.show()
+
+# Saving the model
+MODEL_PATH = Path("/home/vivek/Documents/FEL/Machine Learning/PyTorch/Practice/models")
+MODEL_PATH.mkdir(parents=True, exist_ok=True)
+
+MODEL_NAME = "CNN_FashionMNIST_V01.pth"
+MODEL_SAVE_PATH =MODEL_PATH / MODEL_NAME
+
+print(f"Saving model to : {MODEL_PATH}")
+torch.save(obj=model.state_dict(),  # Saving only the learned weights and biases of the trained model
+           f=MODEL_SAVE_PATH)
+
 
