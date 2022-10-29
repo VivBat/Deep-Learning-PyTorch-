@@ -1,3 +1,9 @@
-*.jpg
+data/pizza_steak_sushi/test/pizza/*.jpg
+data/pizza_steak_sushi/test/steak/*.jpg
+data/pizza_steak_sushi/test/sushi/*.jpg
+data/pizza_steak_sushi/train/pizza/*.jpg
+data/pizza_steak_sushi/train/steak/*.jpg
+data/pizza_steak_sushi/train/sushi/*.jpg
+
 *.zip
 
