@@ -347,7 +347,7 @@ for i in range(1, rows*cols+1):
     plt.imshow(img, cmap='gray')
 
     title_color = 'g' if label == pred_label else 'r'
-    plt.title(label_classes[label] + " | " + label_classes[pred_label], c=title_color)
+    plt.title(label_classes[label] + " | " + label_classes[pred_label], c=title_color, fontsize=10)
 
     plt.axis(False)
 plt.show()
